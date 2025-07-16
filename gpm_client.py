@@ -427,9 +427,182 @@ class GPMClient:
             Dict: Update response
         """
         return self.update_profile(profile_id, {"profile_name": name})
+    
+    def create_fingerprint_optimized_profile(self, 
+                                          name: str,
+                                          proxy: str = "",
+                                          location: str = "US",
+                                          detection_level: str = "balanced") -> Dict[str, Any]:
+        """
+        Create a profile optimized for anti-detection with fingerprint considerations
+        
+        Args:
+            name (str): Profile name
+            proxy (str): Proxy configuration
+            location (str): Target location (US, UK, DE, etc.)
+            detection_level (str): "conservative", "balanced", "aggressive"
+            
+        Returns:
+            Dict: Created profile information
+        """
+        
+        # Location-based configurations
+        location_configs = {
+            "US": {
+                "os": "Windows 11",
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "timezone": "America/New_York"
+            },
+            "UK": {
+                "os": "Windows 11",
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "timezone": "Europe/London"
+            },
+            "DE": {
+                "os": "Windows 11", 
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "timezone": "Europe/Berlin"
+            },
+            "JP": {
+                "os": "Windows 11",
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36", 
+                "timezone": "Asia/Tokyo"
+            }
+        }
+        
+        # Detection level configurations
+        detection_configs = {
+            "conservative": {
+                "is_noise_canvas": False,
+                "is_noise_webgl": False,
+                "is_noise_client_rect": False,
+                "is_noise_audio_context": True,  # Minimal noise
+                "is_masked_font": True,
+                "is_masked_webgl_data": True,
+                "is_masked_media_device": True
+            },
+            "balanced": {
+                "is_noise_canvas": True,
+                "is_noise_webgl": True,
+                "is_noise_client_rect": False,
+                "is_noise_audio_context": True,
+                "is_masked_font": True,
+                "is_masked_webgl_data": True,
+                "is_masked_media_device": True
+            },
+            "aggressive": {
+                "is_noise_canvas": True,
+                "is_noise_webgl": True,
+                "is_noise_client_rect": True,
+                "is_noise_audio_context": True,
+                "is_masked_font": True,
+                "is_masked_webgl_data": True,
+                "is_masked_media_device": True
+            }
+        }
+        
+        # Get configurations
+        loc_config = location_configs.get(location, location_configs["US"])
+        det_config = detection_configs.get(detection_level, detection_configs["balanced"])
+        
+        # Create optimized profile
+        profile_data = {
+            "profile_name": name,
+            "group_name": f"{location} Profiles",
+            "browser_core": "chromium",
+            "browser_name": "Chrome",
+            "browser_version": "119.0.6045.124",
+            "is_random_browser_version": False,  # Consistency is key
+            "raw_proxy": proxy,
+            "startup_urls": "",
+            "os": loc_config["os"],
+            "user_agent": loc_config["user_agent"],
+            
+            # WebRTC protection (critical for proxy users)
+            "webrtc_mode": 2 if proxy else 1,  # Base on IP if proxy, off if no proxy
+            
+            # Fingerprint protection based on detection level
+            **det_config,
+            
+            # Consistency settings (avoid detection)
+            "is_random_screen": False,  # Keep consistent screen
+            "is_random_os": False,      # Don't randomize OS
+        }
+        
+        return self.create_profile(profile_data)
+    
+    def validate_fingerprint_consistency(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate fingerprint consistency to avoid detection
+        
+        Args:
+            profile_data (dict): Profile configuration
+            
+        Returns:
+            Dict: Validation results with warnings and suggestions
+        """
+        warnings = []
+        suggestions = []
+        
+        # Check proxy and WebRTC consistency
+        has_proxy = bool(profile_data.get('raw_proxy', ''))
+        webrtc_mode = profile_data.get('webrtc_mode', 2)
+        
+        if has_proxy and webrtc_mode == 1:
+            warnings.append("WebRTC is disabled but proxy is configured - may leak real IP")
+            suggestions.append("Set webrtc_mode to 2 (Base on IP) when using proxy")
+        
+        if not has_proxy and webrtc_mode == 2:
+            warnings.append("WebRTC set to 'Base on IP' but no proxy configured")
+            suggestions.append("Set webrtc_mode to 1 (Off) when not using proxy")
+        
+        # Check OS and User Agent consistency
+        os_name = profile_data.get('os', '')
+        user_agent = profile_data.get('user_agent', '')
+        
+        if 'Windows' in os_name and 'Macintosh' in user_agent:
+            warnings.append("OS/User Agent mismatch: Windows OS with macOS User Agent")
+            suggestions.append("Use Windows-compatible User Agent")
+        
+        if 'Mac' in os_name and 'Windows NT' in user_agent:
+            warnings.append("OS/User Agent mismatch: macOS with Windows User Agent")
+            suggestions.append("Use macOS-compatible User Agent")
+        
+        # Check noise configuration balance
+        noise_count = sum([
+            profile_data.get('is_noise_canvas', False),
+            profile_data.get('is_noise_webgl', False),
+            profile_data.get('is_noise_client_rect', False),
+            profile_data.get('is_noise_audio_context', False)
+        ])
+        
+        if noise_count == 0:
+            warnings.append("No noise protection enabled - may have predictable fingerprint")
+            suggestions.append("Enable at least canvas and audio noise for basic protection")
+        
+        if noise_count >= 4:
+            warnings.append("All noise protections enabled - may be detectable as anti-detection")
+            suggestions.append("Consider using balanced noise configuration")
+        
+        # Check randomization settings
+        random_settings = [
+            profile_data.get('is_random_browser_version', False),
+            profile_data.get('is_random_screen', False),
+            profile_data.get('is_random_os', False)
+        ]
+        
+        if any(random_settings):
+            warnings.append("Random settings enabled - may cause inconsistency")
+            suggestions.append("Disable randomization for consistent fingerprinting")
+        
+        return {
+            "valid": len(warnings) == 0,
+            "warnings": warnings,
+            "suggestions": suggestions,
+            "risk_level": "high" if len(warnings) >= 3 else "medium" if len(warnings) >= 1 else "low"
+        }
 
-
-# Context Manager for Profile Sessions
+    # Context Manager for Profile Sessions
 class GPMProfileSession:
     """
     Context manager for GPM profile sessions

@@ -268,6 +268,188 @@ def estimate_task_duration(profile_count: int, tasks_per_profile: int, avg_task_
     }
 
 
+def assess_proxy_quality(proxy_string: str) -> Dict[str, Any]:
+    """
+    Assess proxy configuration quality for anti-detection
+    
+    Args:
+        proxy_string (str): Proxy configuration string
+        
+    Returns:
+        Dict: Quality assessment results
+    """
+    if not proxy_string:
+        return {
+            "quality": "none",
+            "type": "none", 
+            "recommendations": ["Consider using proxy for better anonymity"]
+        }
+    
+    quality_scores = {
+        "residential": 90,
+        "datacenter": 60,
+        "socks5": 80,
+        "http": 70,
+        "tm": 85,
+        "tin": 85,
+        "tinsoft": 85
+    }
+    
+    recommendations = []
+    proxy_type = "unknown"
+    quality = 50  # Default score
+    
+    # Analyze proxy type
+    if proxy_string.startswith('socks5://'):
+        proxy_type = "socks5"
+        quality = quality_scores["socks5"]
+        recommendations.append("SOCKS5 provides good protocol support")
+    elif proxy_string.startswith('tm://'):
+        proxy_type = "tmproxy"
+        quality = quality_scores["tm"]
+        recommendations.append("TMProxy typically provides residential IPs")
+    elif proxy_string.startswith('tin://'):
+        proxy_type = "tinproxy"
+        quality = quality_scores["tin"]
+        recommendations.append("TinProxy service detected")
+    elif proxy_string.startswith('tinsoft://'):
+        proxy_type = "tinsoftproxy"
+        quality = quality_scores["tinsoft"]
+        recommendations.append("TinsoftProxy service detected")
+    elif ':' in proxy_string:
+        proxy_type = "http"
+        quality = quality_scores["http"]
+        parts = proxy_string.split(':')
+        if len(parts) == 4:
+            recommendations.append("HTTP proxy with authentication")
+        else:
+            recommendations.append("HTTP proxy without authentication - less secure")
+    
+    # Quality recommendations
+    if quality >= 85:
+        recommendations.append("High-quality proxy configuration")
+    elif quality >= 70:
+        recommendations.append("Good proxy configuration")
+    elif quality >= 60:
+        recommendations.append("Moderate proxy - consider upgrading for better protection")
+        recommendations.append("Datacenter proxies may be more easily detected")
+    else:
+        recommendations.append("Low-quality proxy - high detection risk")
+        recommendations.append("Consider using residential or mobile proxies")
+    
+    # Additional recommendations
+    if proxy_type in ["tm", "tin", "tinsoft"]:
+        recommendations.append("API-based proxy service - ensure proper key management")
+    
+    if proxy_type == "http":
+        recommendations.append("Consider SOCKS5 for better protocol support")
+    
+    return {
+        "quality": quality,
+        "type": proxy_type,
+        "recommendations": recommendations,
+        "risk_level": "low" if quality >= 80 else "medium" if quality >= 60 else "high"
+    }
+
+
+def generate_fingerprint_test_urls() -> Dict[str, str]:
+    """
+    Generate URLs for testing fingerprint protection
+    
+    Returns:
+        Dict: Test URLs for different fingerprint aspects
+    """
+    return {
+        "canvas": "https://browserleaks.com/canvas",
+        "webgl": "https://browserleaks.com/webgl",
+        "audio": "https://browserleaks.com/audio",
+        "fonts": "https://browserleaks.com/fonts",
+        "webrtc": "https://browserleaks.com/webrtc",
+        "ip": "https://browserleaks.com/ip",
+        "dns": "https://browserleaks.com/dns",
+        "geolocation": "https://browserleaks.com/geo",
+        "timezone": "https://browserleaks.com/timezone",
+        "screen": "https://browserleaks.com/screen",
+        "comprehensive": "https://amiunique.org/",
+        "advanced": "https://coveryourtracks.eff.org/",
+        "webrtc_leak": "https://whatismyip.li/webrtc-leak-test"
+    }
+
+
+def create_fingerprint_test_report(test_results: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Create comprehensive fingerprint test report
+    
+    Args:
+        test_results (dict): Results from fingerprint tests
+        
+    Returns:
+        Dict: Formatted test report
+    """
+    report = {
+        "timestamp": datetime.now().isoformat(),
+        "overall_score": 0,
+        "protection_level": "unknown",
+        "details": {},
+        "recommendations": []
+    }
+    
+    # Scoring system (0-100 for each category)
+    category_scores = {}
+    
+    # Canvas protection assessment
+    if "canvas" in test_results:
+        canvas_unique = test_results["canvas"].get("unique", True)
+        canvas_score = 20 if not canvas_unique else 80  # Lower score for unique canvas
+        category_scores["canvas"] = canvas_score
+        report["details"]["canvas"] = {
+            "score": canvas_score,
+            "unique": canvas_unique,
+            "status": "protected" if canvas_score >= 70 else "vulnerable"
+        }
+    
+    # WebGL protection assessment  
+    if "webgl" in test_results:
+        webgl_unique = test_results["webgl"].get("unique", True)
+        webgl_score = 20 if not webgl_unique else 80
+        category_scores["webgl"] = webgl_score
+        report["details"]["webgl"] = {
+            "score": webgl_score,
+            "unique": webgl_unique,
+            "status": "protected" if webgl_score >= 70 else "vulnerable"
+        }
+    
+    # WebRTC leak assessment
+    if "webrtc" in test_results:
+        ip_leaked = test_results["webrtc"].get("real_ip_detected", False)
+        webrtc_score = 20 if ip_leaked else 100
+        category_scores["webrtc"] = webrtc_score
+        report["details"]["webrtc"] = {
+            "score": webrtc_score,
+            "ip_leaked": ip_leaked,
+            "status": "protected" if not ip_leaked else "vulnerable"
+        }
+        
+        if ip_leaked:
+            report["recommendations"].append("WebRTC is leaking real IP - check proxy configuration")
+    
+    # Overall assessment
+    if category_scores:
+        report["overall_score"] = sum(category_scores.values()) / len(category_scores)
+        
+        if report["overall_score"] >= 85:
+            report["protection_level"] = "excellent"
+        elif report["overall_score"] >= 70:
+            report["protection_level"] = "good"
+        elif report["overall_score"] >= 50:
+            report["protection_level"] = "moderate"
+        else:
+            report["protection_level"] = "poor"
+            report["recommendations"].append("Consider reviewing fingerprint protection settings")
+    
+    return report
+
+
 class ProfileManager:
     """Helper class for managing profile operations"""
     

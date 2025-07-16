@@ -12,6 +12,9 @@ A comprehensive Python client and automation framework for GPM-Login browser pro
 - **Batch Operations**: Run automation tasks across multiple profiles
 - **Error Handling**: Comprehensive error handling and logging
 - **Type Hints**: Full type annotations for better IDE support
+- **Fingerprint Protection**: Advanced anti-detection profile optimization
+- **Proxy Assessment**: Quality evaluation for different proxy types
+- **Consistency Validation**: Fingerprint consistency checking
 
 ## Requirements
 
@@ -67,19 +70,27 @@ print(f"Browser started: {browser_info['data']['remote_debugging_address']}")
 client.stop_profile(profile_id)
 ```
 
-### Using Context Manager
+### Fingerprint-Optimized Profile Creation
 
 ```python
-from gpm_client import GPMClient, GPMProfileSession
+from gpm_client import GPMClient
 
 client = GPMClient()
 
-# Automatic profile management
-with GPMProfileSession(client, profile_id) as session_info:
-    browser_data = session_info['data']
-    print(f"Debug address: {browser_data['remote_debugging_address']}")
-    # Do your automation work here
-    # Profile will automatically stop when exiting the context
+# Create profile optimized for specific location and detection level
+profile = client.create_fingerprint_optimized_profile(
+    name="US E-commerce Profile",
+    proxy="us.residential.proxy.com:8080:user:pass",
+    location="US",
+    detection_level="balanced"  # conservative, balanced, aggressive
+)
+
+# Validate fingerprint consistency
+validation = client.validate_fingerprint_consistency(profile_data)
+if not validation['valid']:
+    print("Fingerprint issues detected:")
+    for warning in validation['warnings']:
+        print(f"⚠ {warning}")
 ```
 
 ### Selenium Integration
