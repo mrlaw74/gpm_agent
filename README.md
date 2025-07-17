@@ -15,6 +15,9 @@ A comprehensive Python client and automation framework for GPM-Login browser pro
 - **Fingerprint Protection**: Advanced anti-detection profile optimization
 - **Proxy Assessment**: Quality evaluation for different proxy types
 - **Consistency Validation**: Fingerprint consistency checking
+- **🎬 YouTube Automation**: Complete automation workflow from profile creation to video playback
+- **🔐 Google Sign-in**: Automated Google account authentication
+- **🛡️ Anti-Detection**: Advanced fingerprinting and bot detection avoidance
 
 ## Requirements
 
@@ -129,6 +132,126 @@ helper = GPMAutomationHelper(client)
 # Run task with automatic profile/driver management
 result = helper.run_automation_task(profile_id, my_automation_task, "https://www.google.com")
 print(result)
+```
+
+### YouTube Automation Example
+
+```python
+from gpm_client import GPMClient
+from gpm_selenium import GPMAutomationHelper
+
+client = GPMClient()
+
+# Define a YouTube automation task
+def youtube_automation_task(driver, video_url):
+    driver.get(video_url)
+    # Add more automation steps as needed
+    return {"title": driver.title, "url": driver.current_url}
+
+helper = GPMAutomationHelper(client)
+
+# Run YouTube automation with profile and driver management
+result = helper.run_automation_task(profile_id, youtube_automation_task, "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+print(result)
+```
+
+### 🎬 YouTube Automation (New!)
+
+Complete automation flow from profile creation to video playback:
+
+```python
+# Simple YouTube automation
+from simple_youtube_automation import simple_youtube_automation
+
+# Run complete automation flow
+simple_youtube_automation(
+    email="your-email@gmail.com",
+    password="your-password", 
+    video_search="Python tutorials"
+)
+```
+
+**Advanced YouTube automation with full logging:**
+
+```python
+from youtube_automation_flow import YouTubeAutomationFlow
+
+# Initialize automation
+automation = YouTubeAutomationFlow(
+    proxy="proxy.server.com:8080:user:pass",  # Optional
+    location="US"  # Target location
+)
+
+# Run complete flow
+results = automation.run_complete_flow(
+    email="your-email@gmail.com",
+    password="your-password",
+    search_query="Python programming tutorial"
+)
+
+# Check results
+print(f"Automation success: {results['video_playback']['success']}")
+```
+
+**What the automation does:**
+1. 🔨 Creates optimized browser profile with anti-detection
+2. 🌐 Starts browser session with Selenium
+3. 🔐 Signs into Google account
+4. 📺 Navigates to YouTube
+5. 🔍 Searches for videos
+6. ▶️ Plays first video in results
+7. 🧹 Cleans up resources
+
+### 🚀 Quick YouTube Demo
+
+Want to see how it works without running it? Try the demo:
+
+```bash
+python youtube_automation_demo.py
+```
+
+## 🧹 Cleanup Behavior
+
+**Normal cleanup warnings**: During cleanup, you may see urllib3 connection warnings like:
+```
+WARNING:urllib3.connectionpool:Retrying... Failed to establish a new connection
+```
+
+**These warnings are completely normal** and indicate that:
+- ✅ The browser session is being properly terminated
+- ✅ The WebDriver is correctly disconnecting
+- ✅ All resources are being cleaned up as expected
+
+The warnings occur because Selenium tries to send final commands to a browser that's already closing. This is expected behavior and not an error.
+
+### Available Automation Scripts:
+
+1. **`simple_youtube_automation.py`** - Basic automation, automatic cleanup
+2. **`improved_youtube_automation.py`** - Advanced with cleanup options  
+3. **`clean_youtube_automation.py`** - Optimized for minimal warning output
+4. **`youtube_automation_demo.py`** - Demo mode (no actual automation)
+
+## 📁 Project Structure
+
+```
+gpm_agent/
+├── gpm_client.py                    # Core GPM-Login API client
+├── gpm_selenium.py                  # Selenium WebDriver integration  
+├── utils.py                         # Utility functions and helpers
+├── examples.py                      # Basic usage examples
+├── batch_automation.py              # Parallel processing examples
+├── test_agent.py                   # Comprehensive test suite
+├── setup.py                        # Installation automation
+├── requirements.txt                # Python dependencies
+├── README.md                       # Main documentation
+├── PROJECT_STRUCTURE.md            # Architecture overview
+├── FINGERPRINTING_GUIDE.md         # Fingerprint protection guide
+├── fingerprint_examples.py         # Advanced anti-detection examples
+├── 🎬 YOUTUBE AUTOMATION FILES 🎬
+├── youtube_automation_flow.py       # Complete YouTube automation workflow
+├── simple_youtube_automation.py    # Easy-to-use YouTube automation
+├── youtube_automation_demo.py       # Demo showing workflow steps
+└── YOUTUBE_AUTOMATION_GUIDE.md     # YouTube automation setup guide
 ```
 
 ## API Reference
@@ -325,6 +448,16 @@ This project is provided as-is for educational and automation purposes. Please e
 Created by: **mrlaw74**
 
 ## Changelog
+
+### Version 1.1.0 (July 17, 2025)
+- 🎬 **YouTube Automation**: Complete automation workflow
+- 🔐 **Google Sign-in**: Automated authentication flow
+- 🛡️ **Enhanced Anti-Detection**: Advanced fingerprint protection
+- 📺 **Video Playback**: Automated YouTube video interaction
+- 🔍 **Smart Search**: Intelligent video search and selection
+- 📊 **Detailed Reporting**: Comprehensive automation reports
+- 🚀 **Demo Mode**: Interactive workflow demonstration
+- 📚 **Setup Guide**: Complete YouTube automation documentation
 
 ### Version 1.0.0 (July 16, 2025)
 - Initial release

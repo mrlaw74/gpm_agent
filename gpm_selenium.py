@@ -4,7 +4,9 @@ GPM-Login Selenium Automation Helper
 Provides helper classes and functions to integrate GPM-Login with Selenium WebDriver
 for automated browser tasks.
 
-Author: mrlaw74
+Author: mrla        with GPMSeleniumDriver(self.gpm_client) as gpm_driver:
+            # Create driver from profile
+            driver = gpm_driver.create_driver_from_profile(profile_id)
 Date: July 16, 2025
 """
 
@@ -70,17 +72,16 @@ class GPMSeleniumDriver:
         if not all([browser_path, driver_path, debug_address]):
             raise GPMClientError("Missing required browser connection details")
         
-        # Configure Chrome options
+        # Configure Chrome options (absolute minimal for maximum compatibility)
         chrome_options = ChromeOptions()
         chrome_options.add_experimental_option("debuggerAddress", debug_address)
         chrome_options.binary_location = browser_path
         
-        # Additional Chrome options for better automation
+        # Only the most essential options
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        logger.info("Using minimal Chrome options for maximum compatibility")
         
         # Create Chrome service
         service = ChromeService(executable_path=driver_path)
@@ -167,7 +168,7 @@ class GPMAutomationHelper:
         """
         with GPMSeleniumDriver(self.gpm_client) as gpm_driver:
             # Create driver from profile
-            driver = gmp_driver.create_driver_from_profile(profile_id)
+            driver = gpm_driver.create_driver_from_profile(profile_id)
             
             # Execute the task function
             return task_function(driver, *args, **kwargs)
