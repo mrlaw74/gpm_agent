@@ -51,7 +51,7 @@ class GPMAutomationGUI:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("GPM-Login Automation Suite v1.1.0")
+        self.root.title("GPM-Login Automation v1.1.0")
         self.root.geometry("1200x800")
         self.root.minsize(1000, 700)
         
@@ -96,7 +96,7 @@ class GPMAutomationGUI:
         main_frame.rowconfigure(1, weight=1)
         
         # Title
-        title_label = ttk.Label(main_frame, text="🎬 GPM-Login Automation Suite", style='Title.TLabel')
+        title_label = ttk.Label(main_frame, text="🎬 GPM-Login Automation", style='Title.TLabel')
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
         
         # Left sidebar - Navigation
@@ -264,27 +264,37 @@ class GPMAutomationGUI:
         config_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         config_frame.columnconfigure(1, weight=1)
         
-        # Email
-        ttk.Label(config_frame, text="Google Email:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.email_entry = ttk.Entry(config_frame, width=40)
-        self.email_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
-        
-        # Password
-        ttk.Label(config_frame, text="Password:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.password_entry = ttk.Entry(config_frame, show="*", width=40)
-        self.password_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
-        
-        # Search query
-        ttk.Label(config_frame, text="Search Query:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.search_entry = ttk.Entry(config_frame, width=40)
+        # Search query (required)
+        ttk.Label(config_frame, text="Search Query (Required):").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.search_entry = ttk.Entry(config_frame, width=40, font=('Arial', 10, 'bold'))
         self.search_entry.insert(0, "Python programming tutorial")
-        self.search_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
+        self.search_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
+        
+        # Separator for optional login
+        separator_frame = ttk.Frame(config_frame)
+        separator_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky=(tk.W, tk.E))
+        ttk.Label(separator_frame, text="Google Account Login (Optional)", style='Subtitle.TLabel').grid(row=0, column=0)
+        
+        # Email (optional)
+        ttk.Label(config_frame, text="Google Email (Optional):").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.email_entry = ttk.Entry(config_frame, width=40)
+        self.email_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
+        
+        # Password (optional)
+        ttk.Label(config_frame, text="Password (Optional):").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.password_entry = ttk.Entry(config_frame, show="*", width=40)
+        self.password_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
+        
+        # Info label
+        info_label = ttk.Label(config_frame, text="ℹ️ Login is optional. Automation will work without Google account.", 
+                              font=('Arial', 9), foreground='#7f8c8d')
+        info_label.grid(row=4, column=0, columnspan=2, pady=5)
         
         # Proxy (optional)
-        ttk.Label(config_frame, text="Proxy (optional):").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(config_frame, text="Proxy (Optional):").grid(row=5, column=0, sticky=tk.W, pady=5)
         self.proxy_entry = ttk.Entry(config_frame, width=40)
         self.proxy_entry.insert(0, "proxy.server.com:8080:user:pass")
-        self.proxy_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
+        self.proxy_entry.grid(row=5, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
         
         # Options
         options_frame = ttk.LabelFrame(youtube_frame, text="Options", padding="15")
@@ -378,6 +388,14 @@ class GPMAutomationGUI:
         
         # Context menu
         self.create_profile_context_menu()
+        
+        # Add double-click handler for starting profiles
+        self.profiles_tree.bind("<Double-1>", self.on_profile_double_click)
+        
+        # Add keyboard shortcuts
+        self.profiles_tree.bind("<Return>", lambda e: self.start_selected_profile())
+        self.profiles_tree.bind("<Delete>", lambda e: self.delete_selected_profile())
+        self.profiles_tree.bind("<F5>", lambda e: self.refresh_profiles())
         
         # Load profiles
         self.refresh_profiles()
@@ -595,7 +613,7 @@ class GPMAutomationGUI:
         help_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         help_content = """
-🎬 GPM-Login Automation Suite - Help Guide
+🎬 GPM-Login Automation - Help Guide
 
 GETTING STARTED:
 1. Make sure GPM-Login is running on your computer
@@ -805,18 +823,55 @@ FEATURE OVERVIEW:
             return
             
         try:
+            self.status_text.set("Loading profiles...")
             profiles = self.gpm_client.list_profiles()
+            
+            total_profiles = len(profiles.get('data', []))
+            
             for profile in profiles.get('data', []):
+                # Format proxy information
+                proxy_info = profile.get('proxy', {})
+                if proxy_info and proxy_info.get('proxy_type'):
+                    proxy_display = f"{proxy_info.get('proxy_type', 'Unknown')}"
+                    if proxy_info.get('proxy_host'):
+                        proxy_display += f" ({proxy_info.get('proxy_host')})"
+                else:
+                    proxy_display = 'None'
+                
+                # Format creation date
+                created_at = profile.get('created_at', 'N/A')
+                if created_at != 'N/A':
+                    try:
+                        # Try to format the date nicely
+                        from datetime import datetime
+                        if 'T' in created_at:
+                            dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                            created_at = dt.strftime('%Y-%m-%d %H:%M')
+                    except:
+                        pass  # Keep original format if parsing fails
+                
+                # Get status from profile data
+                status = profile.get('status', 'Unknown')
+                if status == 'Active':
+                    status = 'Running'
+                elif status in ['Inactive', 'Stopped']:
+                    status = 'Stopped'
+                
                 self.profiles_tree.insert('', 'end', values=(
                     profile.get('name', 'N/A'),
                     profile.get('id', 'N/A'),
-                    profile.get('browser_type', 'N/A'),
-                    profile.get('proxy', {}).get('proxy_type', 'None'),
-                    profile.get('created_at', 'N/A'),
-                    profile.get('status', 'N/A')
+                    profile.get('browser_type', 'Chrome'),
+                    proxy_display,
+                    created_at,
+                    status
                 ))
+            
+            # Update status with summary
+            self.status_text.set(f"Loaded {total_profiles} profiles")
+            
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load profiles: {e}")
+            self.status_text.set("Failed to load profiles")
 
     def create_profile_context_menu(self):
         """Create context menu for profiles"""
@@ -851,7 +906,61 @@ FEATURE OVERVIEW:
         if not selection:
             messagebox.showwarning("Warning", "Please select a profile first")
             return
-        messagebox.showinfo("Start Profile", "Start profile feature - Coming soon!")
+            
+        if not self.gpm_client:
+            messagebox.showerror("Error", "GPM-Login not connected")
+            return
+        
+        # Get selected profile data
+        item = selection[0]
+        profile_data = self.profiles_tree.item(item)['values']
+        
+        if not profile_data or len(profile_data) < 2:
+            messagebox.showerror("Error", "Invalid profile data")
+            return
+            
+        profile_name = profile_data[0]
+        profile_id = profile_data[1]
+        
+        # Confirm action
+        result = messagebox.askyesno("Start Profile", 
+                                   f"Start profile '{profile_name}'?\n\nThis will open a new browser window.")
+        if not result:
+            return
+        
+        def start_profile_thread():
+            try:
+                self.status_text.set(f"Starting profile: {profile_name}")
+                
+                # Start the profile using GPM API
+                start_result = self.gpm_client.start_profile(profile_id)
+                
+                if start_result.get('success', False):
+                    # Profile started successfully
+                    browser_url = start_result.get('data', {}).get('http', '')
+                    selenium_address = start_result.get('data', {}).get('selenium_address', '')
+                    
+                    success_msg = f"Profile '{profile_name}' started successfully!"
+                    if browser_url:
+                        success_msg += f"\n\nBrowser URL: {browser_url}"
+                    if selenium_address:
+                        success_msg += f"\nSelenium Address: {selenium_address}"
+                    
+                    self.root.after(0, lambda: messagebox.showinfo("Success", success_msg))
+                    self.root.after(0, lambda: self.refresh_profiles())  # Refresh to show updated status
+                    self.root.after(0, lambda: self.status_text.set(f"Profile '{profile_name}' started"))
+                else:
+                    error_msg = start_result.get('message', 'Unknown error occurred')
+                    self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to start profile:\n{error_msg}"))
+                    self.root.after(0, lambda: self.status_text.set("Ready"))
+                    
+            except Exception as e:
+                error_msg = f"Failed to start profile '{profile_name}':\n{str(e)}"
+                self.root.after(0, lambda: messagebox.showerror("Error", error_msg))
+                self.root.after(0, lambda: self.status_text.set("Ready"))
+        
+        # Start in background thread to avoid blocking UI
+        threading.Thread(target=start_profile_thread, daemon=True).start()
 
     def stop_selected_profile(self):
         """Stop selected profile"""
@@ -859,7 +968,57 @@ FEATURE OVERVIEW:
         if not selection:
             messagebox.showwarning("Warning", "Please select a profile first")
             return
-        messagebox.showinfo("Stop Profile", "Stop profile feature - Coming soon!")
+            
+        if not self.gpm_client:
+            messagebox.showerror("Error", "GPM-Login not connected")
+            return
+        
+        # Get selected profile data
+        item = selection[0]
+        profile_data = self.profiles_tree.item(item)['values']
+        
+        if not profile_data or len(profile_data) < 2:
+            messagebox.showerror("Error", "Invalid profile data")
+            return
+            
+        profile_name = profile_data[0]
+        profile_id = profile_data[1]
+        
+        # Confirm action
+        result = messagebox.askyesno("Stop Profile", 
+                                   f"Stop profile '{profile_name}'?\n\nThis will close the browser window.")
+        if not result:
+            return
+        
+        def stop_profile_thread():
+            try:
+                self.status_text.set(f"Stopping profile: {profile_name}")
+                
+                # Stop the profile using GPM API
+                stop_result = self.gpm_client.stop_profile(profile_id)
+                
+                if stop_result.get('success', False):
+                    # Profile stopped successfully
+                    success_msg = f"Profile '{profile_name}' stopped successfully!"
+                    self.root.after(0, lambda: messagebox.showinfo("Success", success_msg))
+                    self.root.after(0, lambda: self.refresh_profiles())  # Refresh to show updated status
+                    self.root.after(0, lambda: self.status_text.set(f"Profile '{profile_name}' stopped"))
+                else:
+                    error_msg = stop_result.get('message', 'Unknown error occurred')
+                    self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to stop profile:\n{error_msg}"))
+                    self.root.after(0, lambda: self.status_text.set("Ready"))
+                    
+            except Exception as e:
+                error_msg = f"Failed to stop profile '{profile_name}':\n{str(e)}"
+                self.root.after(0, lambda: messagebox.showerror("Error", error_msg))
+                self.root.after(0, lambda: self.status_text.set("Ready"))
+        
+        # Start in background thread to avoid blocking UI
+        threading.Thread(target=stop_profile_thread, daemon=True).start()
+
+    def on_profile_double_click(self, event):
+        """Handle double-click on profile - start the profile"""
+        self.start_selected_profile()
 
     def delete_selected_profile(self):
         """Delete selected profile"""
@@ -870,12 +1029,346 @@ FEATURE OVERVIEW:
         messagebox.showinfo("Delete Profile", "Delete profile feature - Coming soon!")
 
     def start_youtube_automation(self):
-        """Start YouTube automation"""
-        messagebox.showinfo("YouTube Automation", "YouTube automation feature - Coming soon!")
+        """Start YouTube automation with optional Gmail login"""
+        if not self.gpm_client:
+            messagebox.showerror("Error", "GPM-Login not connected")
+            return
+        
+        # Get search query - this is required
+        search_query = self.search_entry.get().strip()
+        if not search_query:
+            messagebox.showerror("Error", "Please enter a YouTube search query")
+            self.search_entry.focus()
+            return
+        
+        # Get optional Gmail credentials
+        email = self.email_entry.get().strip()
+        password = self.password_entry.get().strip()
+        use_login = bool(email and password)
+        
+        # Get proxy settings
+        proxy_str = self.proxy_entry.get().strip()
+        proxy_config = None
+        if proxy_str and proxy_str != "proxy.server.com:8080:user:pass":
+            try:
+                # Parse proxy string: host:port:username:password
+                proxy_parts = proxy_str.split(':')
+                if len(proxy_parts) >= 2:
+                    proxy_config = {
+                        'proxy_type': 'http',
+                        'proxy_host': proxy_parts[0],
+                        'proxy_port': int(proxy_parts[1]),
+                        'proxy_user': proxy_parts[2] if len(proxy_parts) > 2 else '',
+                        'proxy_password': proxy_parts[3] if len(proxy_parts) > 3 else ''
+                    }
+            except (ValueError, IndexError):
+                messagebox.showerror("Error", "Invalid proxy format. Use: host:port:user:pass")
+                return
+        
+        # Get automation options
+        auto_cleanup = self.cleanup_var.get()
+        take_screenshot = self.screenshot_var.get()
+        keep_open = self.keep_open_var.get()
+        
+        # Confirm start
+        confirmation_text = f"Start YouTube automation?\n\nSearch: {search_query}"
+        if use_login:
+            confirmation_text += f"\nLogin: {email}"
+        if proxy_config:
+            confirmation_text += f"\nProxy: {proxy_config['proxy_host']}:{proxy_config['proxy_port']}"
+        
+        if not messagebox.askyesno("Start Automation", confirmation_text):
+            return
+        
+        # Disable start button and enable stop button
+        self.start_youtube_btn.config(state='disabled')
+        self.stop_youtube_btn.config(state='normal')
+        
+        # Clear log
+        self.youtube_log.config(state='normal')
+        self.youtube_log.delete(1.0, tk.END)
+        self.youtube_log.config(state='disabled')
+        
+        # Start automation in background thread
+        def youtube_automation_thread():
+            try:
+                self.log_youtube_message("🎬 Starting YouTube automation...")
+                self.status_text.set("Creating profile for automation")
+                
+                # Create a new profile for automation
+                profile_data = {
+                    'name': f'YouTube_Auto_{int(time.time())}',
+                    'browser_type': 'chrome',
+                    'os_type': 'windows',
+                    'start_url': 'https://youtube.com'
+                }
+                
+                # Add proxy if configured
+                if proxy_config:
+                    profile_data['proxy'] = proxy_config
+                    self.log_youtube_message(f"📡 Using proxy: {proxy_config['proxy_host']}:{proxy_config['proxy_port']}")
+                
+                # Create profile
+                profile_result = self.gpm_client.create_profile(profile_data)
+                
+                if not profile_result.get('success', False):
+                    raise Exception(f"Failed to create profile: {profile_result.get('message', 'Unknown error')}")
+                
+                profile_id = profile_result['data']['id']
+                profile_name = profile_result['data']['name']
+                self.log_youtube_message(f"✅ Created profile: {profile_name}")
+                
+                # Start the profile
+                self.log_youtube_message("🚀 Starting browser profile...")
+                start_result = self.gpm_client.start_profile(profile_id)
+                
+                if not start_result.get('success', False):
+                    raise Exception(f"Failed to start profile: {start_result.get('message', 'Unknown error')}")
+                
+                # Get connection details
+                connection_data = start_result['data']
+                selenium_address = connection_data.get('selenium_address', '')
+                browser_port = connection_data.get('port', '')
+                
+                self.log_youtube_message(f"🌐 Browser started on port {browser_port}")
+                
+                # Connect to browser using Selenium
+                self.log_youtube_message("🔗 Connecting to browser...")
+                
+                try:
+                    from selenium import webdriver
+                    from selenium.webdriver.common.by import By
+                    from selenium.webdriver.support.ui import WebDriverWait
+                    from selenium.webdriver.support import expected_conditions as EC
+                    from selenium.webdriver.chrome.options import Options
+                    from selenium.webdriver.common.keys import Keys
+                except ImportError:
+                    raise Exception("Selenium is not installed. Please install it using: pip install selenium")
+                
+                # Configure Chrome options
+                chrome_options = Options()
+                chrome_options.add_experimental_option("debuggerAddress", f"127.0.0.1:{browser_port}")
+                
+                # Connect to the browser
+                driver = webdriver.Chrome(options=chrome_options)
+                self.log_youtube_message("✅ Connected to browser successfully")
+                
+                try:
+                    # Navigate to YouTube
+                    self.log_youtube_message("📺 Navigating to YouTube...")
+                    driver.get("https://www.youtube.com")
+                    
+                    # Wait for page to load
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.TAG_NAME, "body"))
+                    )
+                    self.log_youtube_message("✅ YouTube loaded successfully")
+                    
+                    # Optional: Login to Gmail/Google
+                    if use_login:
+                        self.log_youtube_message(f"🔐 Attempting to login with {email}...")
+                        
+                        # Look for sign-in button
+                        try:
+                            # Try to find and click sign-in button
+                            sign_in_selectors = [
+                                "a[href*='accounts.google.com']",
+                                "[aria-label*='Sign in']",
+                                "ytd-button-renderer#signin",
+                                "#sign-in-button"
+                            ]
+                            
+                            sign_in_clicked = False
+                            for selector in sign_in_selectors:
+                                try:
+                                    sign_in_btn = WebDriverWait(driver, 5).until(
+                                        EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                                    )
+                                    sign_in_btn.click()
+                                    sign_in_clicked = True
+                                    self.log_youtube_message("🔘 Clicked sign-in button")
+                                    break
+                                except:
+                                    continue
+                            
+                            if sign_in_clicked:
+                                # Wait for Google login page
+                                WebDriverWait(driver, 10).until(
+                                    lambda d: "accounts.google.com" in d.current_url
+                                )
+                                
+                                # Enter email
+                                email_input = WebDriverWait(driver, 10).until(
+                                    EC.presence_of_element_located((By.ID, "identifierId"))
+                                )
+                                email_input.send_keys(email)
+                                email_input.send_keys(Keys.ENTER)
+                                self.log_youtube_message("📧 Entered email address")
+                                
+                                # Wait a bit and enter password
+                                time.sleep(2)
+                                password_input = WebDriverWait(driver, 10).until(
+                                    EC.element_to_be_clickable((By.NAME, "password"))
+                                )
+                                password_input.send_keys(password)
+                                password_input.send_keys(Keys.ENTER)
+                                self.log_youtube_message("🔑 Entered password")
+                                
+                                # Wait for redirect back to YouTube
+                                WebDriverWait(driver, 15).until(
+                                    lambda d: "youtube.com" in d.current_url
+                                )
+                                self.log_youtube_message("✅ Successfully logged in!")
+                            else:
+                                self.log_youtube_message("⚠️ Could not find sign-in button, continuing without login")
+                                
+                        except Exception as login_error:
+                            self.log_youtube_message(f"⚠️ Login failed: {str(login_error)}, continuing without login")
+                    
+                    # Search for the specified query
+                    self.log_youtube_message(f"🔍 Searching for: {search_query}")
+                    
+                    # Find search box
+                    search_selectors = [
+                        "input#search",
+                        "input[name='search_query']",
+                        "#search-input input",
+                        "input[placeholder*='Search']"
+                    ]
+                    
+                    search_box = None
+                    for selector in search_selectors:
+                        try:
+                            search_box = WebDriverWait(driver, 5).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                            )
+                            break
+                        except:
+                            continue
+                    
+                    if not search_box:
+                        raise Exception("Could not find YouTube search box")
+                    
+                    # Clear and enter search query
+                    search_box.clear()
+                    search_box.send_keys(search_query)
+                    search_box.send_keys(Keys.ENTER)
+                    self.log_youtube_message("🔍 Search query submitted")
+                    
+                    # Wait for search results
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "ytd-video-renderer"))
+                    )
+                    self.log_youtube_message("📋 Search results loaded")
+                    
+                    # Click on first video
+                    first_video = driver.find_element(By.CSS_SELECTOR, "ytd-video-renderer a#video-title")
+                    video_title = first_video.get_attribute("title") or "Unknown Video"
+                    
+                    self.log_youtube_message(f"▶️ Playing video: {video_title}")
+                    first_video.click()
+                    
+                    # Wait for video page to load
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "video"))
+                    )
+                    self.log_youtube_message("🎬 Video page loaded successfully")
+                    
+                    # Take screenshot if requested
+                    if take_screenshot:
+                        try:
+                            screenshot_path = f"youtube_screenshot_{int(time.time())}.png"
+                            driver.save_screenshot(screenshot_path)
+                            self.log_youtube_message(f"📸 Screenshot saved: {screenshot_path}")
+                        except Exception as e:
+                            self.log_youtube_message(f"⚠️ Screenshot failed: {str(e)}")
+                    
+                    # Wait a bit to let video load
+                    time.sleep(3)
+                    self.log_youtube_message("✅ YouTube automation completed successfully!")
+                    
+                    # Keep browser open if requested
+                    if keep_open:
+                        self.log_youtube_message("🔄 Keeping browser open as requested")
+                        self.log_youtube_message("ℹ️ You can manually close the browser or use 'Stop Automation'")
+                    else:
+                        # Close browser
+                        driver.quit()
+                        self.log_youtube_message("🔒 Browser closed")
+                        
+                        # Stop profile if auto cleanup enabled
+                        if auto_cleanup:
+                            self.log_youtube_message("🧹 Cleaning up profile...")
+                            self.gpm_client.stop_profile(profile_id)
+                            self.log_youtube_message("✅ Profile cleanup completed")
+                
+                finally:
+                    # If we're not keeping the browser open and didn't quit above
+                    if not keep_open:
+                        try:
+                            driver.quit()
+                        except:
+                            pass
+                
+            except Exception as e:
+                error_msg = f"❌ YouTube automation failed: {str(e)}"
+                self.log_youtube_message(error_msg)
+                self.root.after(0, lambda: messagebox.showerror("Automation Failed", str(e)))
+            
+            finally:
+                # Re-enable buttons
+                self.root.after(0, lambda: self.start_youtube_btn.config(state='normal'))
+                self.root.after(0, lambda: self.stop_youtube_btn.config(state='disabled'))
+                self.root.after(0, lambda: self.status_text.set("Ready"))
+        
+        # Start automation thread
+        self.running_automations['youtube'] = threading.Thread(target=youtube_automation_thread, daemon=True)
+        self.running_automations['youtube'].start()
+    
+    def log_youtube_message(self, message):
+        """Log message to YouTube automation log"""
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        log_entry = f"[{timestamp}] {message}\n"
+        
+        def update_log():
+            self.youtube_log.config(state='normal')
+            self.youtube_log.insert(tk.END, log_entry)
+            self.youtube_log.see(tk.END)
+            self.youtube_log.config(state='disabled')
+        
+        # Update log on main thread
+        self.root.after(0, update_log)
 
     def stop_youtube_automation(self):
         """Stop YouTube automation"""
-        messagebox.showinfo("Stop Automation", "Stop automation feature - Coming soon!")
+        if 'youtube' not in self.running_automations:
+            messagebox.showinfo("Stop Automation", "No YouTube automation is currently running")
+            return
+        
+        result = messagebox.askyesno("Stop Automation", 
+                                   "Stop the running YouTube automation?\n\nThis will close the browser and cleanup the profile.")
+        if not result:
+            return
+        
+        try:
+            # Log stop message
+            self.log_youtube_message("⏹️ Stopping YouTube automation...")
+            
+            # The automation thread will handle cleanup when it detects the stop flag
+            # For now, we'll disable the stop button and enable start button
+            self.stop_youtube_btn.config(state='disabled')
+            self.start_youtube_btn.config(state='normal')
+            
+            # Remove from running automations
+            if 'youtube' in self.running_automations:
+                del self.running_automations['youtube']
+            
+            self.log_youtube_message("✅ YouTube automation stopped")
+            self.status_text.set("Ready")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to stop automation: {str(e)}")
+            self.log_youtube_message(f"❌ Failed to stop automation: {str(e)}")
 
     def test_google_signin(self):
         """Test Google sign-in"""

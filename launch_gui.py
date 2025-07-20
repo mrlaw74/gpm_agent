@@ -73,7 +73,7 @@ def install_dependencies():
 
 def main():
     """Main launcher function"""
-    print("🎬 GPM-Login Automation Suite Launcher")
+    print("🎬 GPM-Login Automation Launcher")
     print("=" * 50)
     
     # Check project files

@@ -251,7 +251,7 @@ def get_profile_schema():
 
 def main():
     """Run all debug tests"""
-    print("🧪 GPM-Login Profile Creation Debug Suite")
+    print("🧪 GPM-Login Profile Creation Debug")
     print("=" * 50)
     print("This script will test various profile creation scenarios")
     print("to identify the cause of 'NOT NULL constraint failed' errors.")

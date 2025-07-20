@@ -236,7 +236,7 @@ gpm_agent/
 
 **mrlaw74**
 - GitHub: [mrlaw74](https://github.com/mrlaw74)
-- Project: GPM-Login Automation Suite
+- Project: GPM-Login Automation
 - Date: July 20, 2025
 
 ## 📝 License
