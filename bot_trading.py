@@ -5,6 +5,22 @@ from datetime import datetime
 BASE_URL = "https://api-demo.bybit.com"
 
 # ----------------------------
+# CONSTANTS
+# ----------------------------
+DEFAULT_USDT = 690
+TP_SL_USDT = 5       # Take Profit / Stop Loss cố định
+VOLUME_BIG = 10000    # ETH, BTC
+VOLUME_SMALL = 1000   # Các token còn lại
+ENTRY_PRICE_DIFF = 0.00008  # Chênh lệch giá để vào lệnh
+
+SYMBOLS = [
+    "ETHUSDT", "BTCUSDT", "DOGEUSDT", "SOLUSDT", "ADAUSDT",
+    "BNBUSDT", "XRPUSDT", "MATICUSDT", "LTCUSDT", "DOTUSDT"
+]
+
+BIG_VOLUME_SYMBOLS = ["ETHUSDT", "BTCUSDT"]
+
+# ----------------------------
 # Lấy giá thị trường thật từ Bybit Demo
 # ----------------------------
 def get_market_price(symbol="ETHUSDT"):
@@ -23,7 +39,7 @@ def get_market_price(symbol="ETHUSDT"):
 # Exchange Demo kiểu Future, 1 lệnh/buy/sell/token
 # ----------------------------
 class DemoExchange:
-    def __init__(self, initial_usdt=720):
+    def __init__(self, initial_usdt=DEFAULT_USDT):
         self.wallet = {"USDT": initial_usdt}
         self.positions = {}       # {symbol: order} 1 order duy nhất
         self.last_prices = {}     
@@ -33,17 +49,16 @@ class DemoExchange:
         if price is None:
             return None
 
-        # Không mở lệnh nếu đã có lệnh OPEN
         if symbol in self.positions and self.positions[symbol]['status'] == "OPEN":
             return None
 
-        # TP/SL cố định ±1 USDT
+        # TP/SL ±1 USDT
         if side.lower() == "buy":
-            stop_loss = round(price - 1/qty, 5)
-            take_profit = round(price + 1/qty, 5)
+            stop_loss = round(price - TP_SL_USDT/qty, 5)
+            take_profit = round(price + TP_SL_USDT/qty, 5)
         elif side.lower() == "sell":
-            stop_loss = round(price + 1/qty, 5)
-            take_profit = round(price - 1/qty, 5)
+            stop_loss = round(price + TP_SL_USDT/qty, 5)
+            take_profit = round(price - TP_SL_USDT/qty, 5)
 
         order = {
             "symbol": symbol,
@@ -57,8 +72,8 @@ class DemoExchange:
         }
         self.positions[symbol] = order
 
-        # Log chi tiết khi mở lệnh
-        print(f"[NEW ORDER] {symbol} {side} {qty} @ {price} | SL: {stop_loss} TP: {take_profit} | Time: {order['time']}")
+        side_icon = "⬆️" if side.lower() == "buy" else "⬇️"
+        print(f"[NEW ORDER] {symbol} {side_icon} {qty} @ {price} | SL: {stop_loss} TP: {take_profit} | Time: {order['time']}")
         return order
 
     def compute_pnl(self, symbol):
@@ -81,10 +96,9 @@ class DemoExchange:
             pnl = self.compute_pnl(symbol)
             close_order = False
 
-            # TP/SL ±1 USDT
-            if pnl >= 1 or pnl <= -1:
+            if pnl >= TP_SL_USDT or pnl <= -TP_SL_USDT:
                 close_order = True
-                reason = "TP" if pnl >= 1 else "SL"
+                reason = "TP" if pnl >= TP_SL_USDT else "SL"
                 price_now = get_market_price(symbol)
                 print(f"[{reason}] Closing {symbol} {pos['side']} at {price_now} | PnL: {pnl} USDT")
 
@@ -96,11 +110,15 @@ class DemoExchange:
         now = datetime.now().strftime("%H:%M:%S")
         total_pnl = sum(self.compute_pnl(sym) for sym in self.positions if self.positions[sym]['status']=="OPEN")
         print("="*50)
-        print(f"💰 Wallet (USDT): {round(self.wallet['USDT'] + total_pnl,2)} | Time: {now}")
+        print(f"💰 Wallet (USDT): {round(self.wallet['USDT'] + total_pnl,2)} | ⏰ Time: {now}")
         for symbol, pos in self.positions.items():
+            status_icon = "🟢" if pos['status']=="OPEN" else "🔴"
+            side_icon = "⬆️" if pos['side'].lower()=="buy" else "⬇️"
+            pnl_val = self.compute_pnl(symbol)
+            pnl_icon = "📈" if pnl_val > 0 else "📉" if pnl_val < 0 else "⚖️"
             print(f"\n{symbol} Position:")
-            print(f"  {pos['side']} {pos['qty']} @ {pos['price']} | Status: {pos['status']} | SL: {pos['stop_loss']} TP: {pos['take_profit']}")
-            print(f"  PnL: {self.compute_pnl(symbol)} USDT")
+            print(f"  {side_icon} {pos['qty']} @ {pos['price']} | {status_icon} {pos['status']} | SL: {pos['stop_loss']} TP: {pos['take_profit']}")
+            print(f"  {pnl_icon} PnL: {pnl_val} USDT")
         print("="*50 + "\n")
 
     def auto_trade(self, symbol, qty=0.1):
@@ -113,11 +131,10 @@ class DemoExchange:
 
         print(f"[PRICE] {symbol}: {round(price_now,5)} | Change: {round(change_pct*100,3)}%")
 
-        # Nếu chưa có lệnh, mở 1 lệnh theo biến động ±0.04%
         if symbol not in self.positions or self.positions[symbol]['status'] != "OPEN":
-            if change_pct <= -0.0004:
+            if change_pct <= -ENTRY_PRICE_DIFF:
                 self.place_order(symbol, "Buy", qty)
-            elif change_pct >= 0.0004:
+            elif change_pct >= ENTRY_PRICE_DIFF:
                 self.place_order(symbol, "Sell", qty)
 
         self.last_prices[symbol] = price_now
@@ -126,25 +143,18 @@ class DemoExchange:
 # Main Demo
 # ----------------------------
 if __name__ == "__main__":
-    symbols = [
-        "ETHUSDT", "BTCUSDT", "DOGEUSDT", "SOLUSDT", "ADAUSDT",
-        "BNBUSDT", "XRPUSDT", "MATICUSDT", "LTCUSDT", "DOTUSDT"
-    ]
     exchange = DemoExchange()
 
     while True:
-        for sym in symbols:
+        for sym in SYMBOLS:
             price_now = get_market_price(sym)
             if price_now is None:
                 continue
 
             # Xác định volume theo token
-            if sym in ["ETHUSDT", "BTCUSDT"]:
-                volume = 10000  # USDT
-            else:
-                volume = 1000   # USDT
+            volume = VOLUME_BIG if sym in BIG_VOLUME_SYMBOLS else VOLUME_SMALL
+            qty = round(volume / price_now, 5)
 
-            qty = round(volume / price_now, 5)  # tính số lượng token
             exchange.auto_trade(sym, qty=qty)
         exchange.check_stop_take()
         exchange.show_wallet()
